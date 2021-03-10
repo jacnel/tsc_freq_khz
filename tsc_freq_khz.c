@@ -12,7 +12,7 @@ extern unsigned int tsc_khz;
 #define DRIVER_NAME "tsc_freq_khz"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Trail of Bits");
+MODULE_AUTHOR("Jacob Nelson");
 MODULE_DESCRIPTION("Exports tsc_khz via syfs");
 MODULE_VERSION("0.1");
 
@@ -36,22 +36,21 @@ static struct kobj_attribute tsc_freq_khz_attribute =
            tsc_freq_khz_show, tsc_freq_khz_store);
 
 static int __init tsc_khz_init(void) {
-  struct device *dev;
   int error = -ENOENT;
+  int cpu_id = -1;
+  struct device *dev;
   printk(KERN_INFO DRIVER_NAME ": starting driver\n");
-
-  dev = get_cpu_device(0); // assumes always a cpu0
-  if (!dev) {
-    printk(KERN_INFO DRIVER_NAME ": could not get device for CPU %d\n", 0);
-    error = -ENOENT;
-  } else {
-    printk(KERN_INFO DRIVER_NAME ": registering with sysfs\n");
+  printk(KERN_INFO DRIVER_NAME ": registering with sysfs\n");
+  for_each_cpu(cpu_id, cpu_online_mask) {
+    dev = get_cpu_device(cpu_id);
     error = sysfs_create_file(&dev->kobj, &tsc_freq_khz_attribute.attr);
     if (error) {
-      printk(KERN_INFO DRIVER_NAME ": could not register with sysfs (%d)\n",
-             error);
+      printk(KERN_INFO DRIVER_NAME ": could not register with CPU %d (% d)\n ",
+             cpu_id, error);
+      return error;
     } else {
-      printk(KERN_INFO DRIVER_NAME ": successfully registered\n");
+      printk(KERN_INFO DRIVER_NAME ": successfully registered with CPU %d\n",
+             cpu_id);
     }
   }
 
@@ -60,13 +59,16 @@ static int __init tsc_khz_init(void) {
 
 static void __exit tsc_khz_exit(void) {
   struct device *dev;
+  int cpu_id;
   printk(KERN_INFO DRIVER_NAME ": unloading driver\n");
-  dev = get_cpu_device(0); // assumes always a cpu0
-  if (!dev) {
-    printk(KERN_INFO DRIVER_NAME ": could not get device for CPU %d\n", 0);
-    return;
+  for_each_cpu(cpu_id, cpu_online_mask) {
+    dev = get_cpu_device(cpu_id); 
+    if (!dev) {
+      printk(KERN_INFO DRIVER_NAME ": could not get device for CPU %d\n", cpu_id);
+      return;
+    }
+    sysfs_remove_file(&dev->kobj, &tsc_freq_khz_attribute.attr);
   }
-  sysfs_remove_file(&dev->kobj, &tsc_freq_khz_attribute.attr);
 }
 
 module_init(tsc_khz_init);
