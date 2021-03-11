@@ -40,7 +40,6 @@ static int __init tsc_khz_init(void) {
   int cpu_id = -1;
   struct device *dev;
   printk(KERN_INFO DRIVER_NAME ": starting driver\n");
-  printk(KERN_INFO DRIVER_NAME ": registering with sysfs\n");
   for_each_cpu(cpu_id, cpu_online_mask) {
     dev = get_cpu_device(cpu_id);
     error = sysfs_create_file(&dev->kobj, &tsc_freq_khz_attribute.attr);
